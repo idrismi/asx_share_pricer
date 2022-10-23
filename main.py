@@ -19,7 +19,7 @@ class InvestmentSummary:
 
     def run(self):
         index = 0
-        temp_companies = ['ax1', 'dxi']
+        temp_companies = ['fmg']
         temp_companies = [ticker + ':AU' for ticker in temp_companies]
 
         for ticker in temp_companies:# self.tickers[30:31]:  # TODO Delete [n1:n2]
