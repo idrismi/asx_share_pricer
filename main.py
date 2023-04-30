@@ -18,47 +18,31 @@ class InvestmentSummary:
         self.tickers = self.client.get_supported_companies(country="AU", exchange="ASX")
 
     def run(self):
-        index = 0
-        temp_companies = ['fmg']
-        temp_companies = [ticker + ':AU' for ticker in temp_companies]
+        ticker = input(
+            """What is the ticker for the ASX company you would like to evaluate? E.g. for "Commonwealth Bank of Australia" write CBA\n"""
+        )
+        ticker = ticker + ":AU"
 
-        for ticker in temp_companies:# self.tickers[30:31]:  # TODO Delete [n1:n2]
-            # ticker = 'CBA:AU' # TODO:DELETE
-            
-            try:
-                company = Company(self.client, ticker)
-            except:
-                print(f"{ticker} data not available.")
-                continue
+        try:
+            company = Company(self.client, ticker)
+        except:
+            print(f"{ticker} data not available.\n")
+            exit()
 
-            ls = [company.ticker, company.financials]
-            for e in ls:
-                print(e)
+        for e in [company.ticker, company.financials, ""]:
+            print(e)
 
-            if company.summary is not np.nan:
-                for k, v in company.summary.items():
-                    print(k + ": " + str(v))
-            print("\n" * 2)
-
-        """TODO: UNCOMMENT at the end
-            # Save financials_df data to csv.
-            company.financials.to_csv(self.ticker.split(':')[0] + '.csv')
-
-            # Add summary_df data to summary_df and save to csv.
-            # TODO: if summary file exists header = True else  False
-            pd.DataFrame(company.summary, index=[index]).to_csv('summary_data.csv', header=True, mode='a') # TODO: Change header=header
-            index += 1
-
-            # Wait till next day if not enough quota. 
-            remaining_quota = self.client.get_usage()['quota']['remaining']
-            if remaining_quota < 10:
-                sleep_till_reset(self.client)
-        """
+        if company.summary is not np.nan:
+            for k, v in company.summary.items():
+                print(k + ": " + str(v))
+        print("\n" * 2)
 
 
 class Company:
-    """Provides summary of a company's financial info"""
-  
+    """
+    Provides summary of a company's financial info
+    """
+
     features = ["roic", "book_value", "eps_basic", "revenue"]  # TODO:  Add cashflow
 
     def __init__(self, client, ticker):
@@ -66,7 +50,7 @@ class Company:
         # TODO: Check for financials is None
         financials = pd.DataFrame(data["financials"]["annual"])
         self.ticker = ticker
-        # self.metadata = data['metadata']
+
         # Check if there's enough data for processing.
         if len(financials) < 2:
             self.financials = np.nan
@@ -76,7 +60,9 @@ class Company:
             self.summary = self.produce_summary(self.financials)
 
     def add_pe_ratio(self, df):
-        '''Calculates pe ratio where each year's price is taken from the earliest date of the month "month"'''
+        """
+        Calculates pe ratio.
+        """
         start_year = df["year"].min()
         end_year = df["year"].max()
         yf_ticker = self.ticker.split(":")[0] + ".AX"  # E.g. 'cba.ax'
@@ -87,11 +73,13 @@ class Company:
         return df
 
     def produce_summary(self, df):
-        """Returns a dictionary of financial summary"""
+        """
+        Returns a dictionary of financial summary
+        """
+
         def roic_stable(ds):
             pc = ds.pct_change()
             pc = pc.replace([np.inf, -np.inf], np.nan)
-            print(pc.min())
             return not pc.min() < -0.25
 
         start_year = self.financials["year"].min()
@@ -139,7 +127,6 @@ class Company:
         """
         Clean financials dataframe
         """
-
         df["year"] = df["period_end_date"].str[:4]
         df["year"] = pd.to_numeric(df["year"], errors="coerce")
         df = df[df["year"] > df["year"].max() - 10]  # Data for most recent 10 years.
@@ -148,30 +135,48 @@ class Company:
 
 
 def debt_is_reasonable(long_term_debt, free_cashflow):
+    """
+    Returns a boolean value if the debt is reasonable which is determined by the longterm_debt to  free_cashflow ratio.
+    """
     return long_term_debt / free_cashflow < 3.5
 
 
 def get_growth_rate(pv, fv, t, rounding=4, ignore_negative_pv=False):
+    """
+    Returns the growth rate based on present value, future value, and time in years.
+    """
     if ignore_negative_pv and pv <= 0:
         return np.nan
     return round((fv / pv) ** (1 / t) - 1, rounding)
 
 
 def get_sticker_price(current_eps, growth_rate, future_pe):
+    """
+    Calculates the sticker price of a company (i.e. what a company is actually worth)
+    """
     fv_eps = future_value(current_eps, growth_rate)
     fv_price = fv_eps * future_pe
     return round(present_value(fv_price, INVESTMENT_RETURN), 4)
 
 
 def future_value(pv, r, t=10):
+    """
+    Calculates the future value
+    """
     return pv * (1 + r) ** t
 
 
 def present_value(fv, r, t=10):
+    """
+    Calculates the present value
+    """
     return fv / (1 + r) ** t
 
 
 def sleep_till_reset(client):
+    """
+    Sleeps until request quoata has replenished.
+    """
     reset_time = client.get_usage()["quota"]["resets"]
     reset_time = dt.strptime(reset_time, "Y%-%m-%dT%H:%M:%SZ")
     print(f"Quota for day reached. Script will continue at {reset_time}.")
@@ -180,6 +185,10 @@ def sleep_till_reset(client):
 
 
 def yearly_price(ticker, start_year, end_year, month=7):
+    """
+    Returns the price of a company Share, on the first trading day of the month for the years
+    between start_year and end_year.
+    """
     df = yf.Ticker(ticker).history(period="max")
     if len(df) == 0:  # Make sure there's data.
         return pd.DataFrame(
