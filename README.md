@@ -1,4 +1,4 @@
-# Rule1Investing
+# asx_share_pricer
 Still a work in progress. The main  part of the code puts a price on a company.
 There are still some incomplete sections and mathemathical bugs.
 
